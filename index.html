@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="rwgps.css">
+    <link href="https://ridewithgps.com/favicon-32x32.png?2000000008" rel="icon" sizes="32x32" type="image/png">
+    <script src='riders.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div id='authentication-bar'>
+        <div id='sign-in'>
+            <h1>Idea Week 2024: Distance Goal Demo</h2>
+                <h2>Sign In</h2>
+                <form action='javascript:' onsubmit='fetchData()' method='post' class='sign-in-form'>
+                    <input type='text' name='email' id='emailForm' placeholder='email' /><br>
+                    <input type='password' name='password' id='passwordForm' placeholder='password' /><br>
+                    <button type='submit'>submit</button>
+                </form>
+        </div>
+        <div id='sign-out'><a onclick='signOut()' href=''>Sign Out</a></div>
+    </div>
+
+    <div id='content-container'>
+        <h2> Estimated Time Profle:</h2>
+        <h3>Speed (mph) by Grade</h3>
+        <canvas id='et-graph'></canvas>
+
+        <h3>Pace by Grade</h3>
+        <canvas id='pace-graph'></canvas>
+    </div>
+
+    <!-- TODO <form>
+        <label for="imperial">Imperial</label><br>
+        <input type="radio" id="imperial" name="units"><br>
+        <label for="metric">Metric</label><br>
+        <input type="radio" id="metric" name="units">
+    </form> -->
+
+    <!-- <form style='border:1px solid gray;'>
+        <input type='checkbox' id='cullen' name='cullen' value='Cullen'>
+        <label for='cullen'>Cullen</label><br>
+        <input type='checkbox' id='zack' name='zack' value='Zack'>
+        <label for='zack'>Zack</label><br>
+        <input type='checkbox' id='notchas' name='notchas' value='notchas'>
+        <label for='notchas'>Notchas</label><br>
+    </form> -->
+
+
+    <script>
+        let authToken = localStorage.getItem('auth_token');
+
+        console.log(authToken)
+
+        function signOut() {
+            localStorage.clear();
+            document.getElementById('content-container').style.display = 'none';
+            document.getElementById('sign-in').style.display = 'block';
+        }
+
+        let grades = [];
+        for (let d = -15; d < 16; d++) {
+            grades.push(d);
+        }
+
+
+        function requestData(url, authToken) {
+            const authHeaders = new Headers();
+            if (authToken) { authHeaders.append('x-rwgps-auth-token', authToken) };
+            authHeaders.append('x-rwgps-api-key', 'aa49d17b');
+            authHeaders.append('x-rwgps-api-version', '3');
+
+            const request = new Request(url, {
+                headers: authHeaders
+            });
+            return fetch(request)
+                .then((response) => response.json())
+
+        }
+        function fetchData() {
+            document.getElementById('sign-in').style.display = 'none';
+            let userUrl = null;
+            if (!authToken) {
+                const email = document.getElementById('emailForm').value;
+                const password = document.getElementById('passwordForm').value;
+                userUrl = `https://ridewithgps.com/users/current.json?email=${email}&password=${password}`;
+            } else {
+                userUrl = `https://ridewithgps.com/users/current.json`
+            }
+
+
+            requestData(userUrl, authToken)
+                .then((userData) => {
+                    localStorage.setItem('auth_token', userData.user.auth_token);
+                    authToken = localStorage.getItem('auth_token');
+                    console.log('userData', userData.user.user_summary)
+                    const speedAtGrade = Object.entries(userData.user.user_summary).map((item) => [Number(item[0]), (item[1][0] * 0.621371)]);
+                    const paceAtGrade = Object.entries(userData.user.user_summary).map((item) => [Number(item[0]), 60 / (item[1][0] * 0.621371)]);
+                    //const userSummaryMPH = userSummary.map((i) => [i[0], (i[1] * 0.621371)]);
+                    //console.log(userSummaryMPH);
+
+                    speedAtGrade.sort((a, b) => a[0] - b[0]);
+
+                    paceAtGrade.sort((a, b) => a[0] - b[0]);
+
+                    const notchasPace = notchas.map((item) => [item[0], 60 / item[1]]);
+
+                    console.log('notchas', notchas)
+                    console.log('notchasPace', notchasPace);
+
+                    // console.log('userSummary', speedAtGrade);
+
+                    const ctx = document.getElementById('et-graph');
+                    const mixedChart = new Chart(ctx, {
+                        data: {
+                            datasets: [
+                                {
+                                    type: 'line',
+                                    label: 'Tomas',
+                                    data: speedAtGrade,
+                                    pointRadius: 3,
+                                    backgroundColor: 'green',
+                                    borderColor: 'green',
+                                    yAxisID: 'y1'
+                                }, {
+                                    type: 'line',
+                                    label: 'Notchas',
+                                    data: notchas,
+                                    pointRadius: 3,
+                                    pointStyle: 'rect',
+                                    backgroundColor: 'red',
+                                    borderColor: 'red',
+                                    yAxisID: 'y1'
+                                }
+                            ],
+                            labels: grades,
+
+                        },
+                        options: {
+                            scales: {
+                                y1: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                },
+                                // y2: {
+                                //     type: 'linear',
+                                //     display: true,
+                                //     position: 'right',
+
+                                //     // grid line settings
+                                //     grid: {
+                                //         drawOnChartArea: false
+                                //     }
+                                // }
+                            }
+                        }
+                    });
+
+                    const chartPaceByGrade = document.getElementById('pace-graph');
+                    const pace = new Chart(chartPaceByGrade, {
+                        data: {
+                            datasets: [
+                                {
+                                    type: 'line',
+                                    label: 'Tomas',
+                                    data: paceAtGrade,
+                                    pointRadius: 3,
+                                    backgroundColor: 'green',
+                                    borderColor: 'green',
+                                    yAxisID: 'y1'
+                                }, {
+                                    type: 'line',
+                                    label: 'Notchas',
+                                    data: notchasPace,
+                                    pointRadius: 3,
+                                    pointStyle: 'rect',
+                                    backgroundColor: 'red',
+                                    borderColor: 'red',
+                                    yAxisID: 'y1'
+                                }
+                            ],
+                            labels: grades,
+
+                        },
+                        options: {
+                            scales: {
+                                y1: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                },
+                            }
+                        }
+                    });
+
+                }).then()
+        }
+
+
+
+
+
+    </script>
+
+</body>
+
+</html>
