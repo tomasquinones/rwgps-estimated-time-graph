@@ -1,5 +1,4 @@
-a# rwgps-estimated-time-graph
-Graphing Estimate Time profiles from RWGPS data
+**Graphing Estimate Time profiles from RWGPS data**
 
 A project during Idea Week January 2024. It would plot a graph Estimated Time Values from the current_user.json
 
